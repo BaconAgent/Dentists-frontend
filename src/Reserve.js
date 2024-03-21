@@ -1,5 +1,6 @@
+import { useEffect, useState } from "react"; //why
+
 import axios from "axios";
-import { useEffect, useState } from "react";
 
 function Reserve() {
   const [data, setData] = useState([]);
