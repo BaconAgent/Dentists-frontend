@@ -1,0 +1,6 @@
+# Items that don't need to be in a Docker image
+node_modules/
+npm-debug.log
+.DS_Store
+# This should contain all files created during `npm run build`
+build/
