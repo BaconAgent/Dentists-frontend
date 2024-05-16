@@ -14,6 +14,6 @@ spec:
     spec:
       containers:
       - name: react-app
-        image: baconagent/front-end:upgrade
+        image: baconagent/front-end:latest
         ports:
         - containerPort: 3000

@@ -1,9 +1,9 @@
 import React from "react";
 import { Auth0Provider } from "@auth0/auth0-react";
 import "./App.css";
-import Reserve from "./Reserve";
-import LoginButton from "./components/LoginButton";
-import LogoutButton from "./components/LogoutButon";
+import BigCalendar from "./components/BigCalendar";
+import Header from "./components/Header";
+import "./styles.css";
 
 function App() {
   return (
@@ -13,9 +13,8 @@ function App() {
       redirectUri={window.location.origin}
     >
       <div className="App">
-        <LoginButton />
-        <LogoutButton />
-        <Reserve />
+        <Header />
+        <BigCalendar />
       </div>
     </Auth0Provider>
   );
