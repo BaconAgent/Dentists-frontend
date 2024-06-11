@@ -1,64 +1,81 @@
-import React, { useState } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+// BigCalendar.js
+import React, { useState, useEffect } from "react";
 import { Calendar, momentLocalizer } from "react-big-calendar";
 import moment from "moment";
+import axios from "../axiosConfig";
+import { useAuth0 } from "@auth0/auth0-react";
 import "react-big-calendar/lib/css/react-big-calendar.css";
-import axiosInstance from "../AxiosConfig.js";
 
 const localizer = momentLocalizer(moment);
 
-const BigCalendar = () => {
-  const { isAuthenticated, loginWithRedirect, getAccessTokenSilently } =
-    useAuth0();
-  const [events, setEvents] = useState([]);
+const BigCalendar = ({ clinicId: clinic_id }) => {
+  const { isAuthenticated, loginWithRedirect, user } = useAuth0();
+  const [appointments, setAppointments] = useState([]);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+
+  useEffect(() => {
+    // Fetch appointments for the selected clinic
+    axios
+      .get(`/appointments/${clinic_id}/`)
+      .then((response) => setAppointments(response.data))
+      .catch((error) => console.error("Error fetching appointments:", error));
+  }, [clinic_id]);
 
   const handleSelectSlot = ({ start, end }) => {
     const now = moment();
     const selectedStartTime = moment(start);
     const selectedEndTime = moment(end);
-    const duration = selectedEndTime.diff(selectedStartTime, "minutes");
 
+    // Check if the selected slot is in the future and at least 1 hour from now
     if (
-      selectedStartTime.isAfter(now) &&
-      selectedStartTime.diff(now, "minutes") >= 60
+      !selectedStartTime.isAfter(now) ||
+      selectedStartTime.diff(now, "hours") < 1
     ) {
-      if (duration <= 60) {
-        setEvents([...events, { start, end, title: "Selected Slot" }]);
-      } else {
-        alert("Please select a maximum of 2 consecutive time slots (1 hour).");
-      }
-    } else {
       alert(
-        "Please select a date and time that is at least 1 hour ahead of the current time."
+        "Please select a time slot that is at least 1 hour ahead of the current time."
       );
+      return;
     }
+
+    // Check if the duration of the selected slot is exactly 30 minutes or 1 hour
+    const durationInMinutes = selectedEndTime.diff(
+      selectedStartTime,
+      "minutes"
+    );
+    if (durationInMinutes !== 30 && durationInMinutes !== 60) {
+      alert(
+        "Please select a time slot with a duration of either 30 minutes or 1 hour."
+      );
+      return;
+    }
+
+    setSelectedTimeSlot({ start, end });
   };
 
-  const handleConfirmAppointment = async () => {
-    if (events.length > 0) {
+  const handleConfirmAppointment = () => {
+    if (selectedTimeSlot) {
       if (isAuthenticated) {
-        try {
-          const token = await getAccessTokenSilently();
-          const response = await axiosInstance.post(
-            "/appointments/",
-            {
-              appointments: events,
-            },
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
+        const appointmentData = {
+          user_id: user.sub, // Using Auth0 user ID
+          clinic_id: clinic_id, // Dynamic clinic ID
+          start_time: selectedTimeSlot.start,
+          end_time: selectedTimeSlot.end,
+        };
+
+        axios
+          .post("/appointments/create", appointmentData)
+          .then((response) => {
+            setAppointments([...appointments, response.data]);
+            setSelectedTimeSlot(null);
+          })
+          .catch((error) =>
+            console.error("Error creating appointment:", error)
           );
-          console.log("Confirmed appointment:", response.data);
-        } catch (error) {
-          console.error("Error confirming appointment:", error);
-        }
       } else {
         loginWithRedirect();
       }
     } else {
-      console.log("Please select a time slot first.");
+      alert("Please select a time slot first.");
     }
   };
 
@@ -68,22 +85,27 @@ const BigCalendar = () => {
         localizer={localizer}
         selectable
         onSelectSlot={handleSelectSlot}
-        events={events}
+        events={appointments.map((app) => ({
+          start: new Date(app.start_time),
+          end: new Date(app.end_time),
+          // title: `Appointment with ${app.user.name}`,
+        }))}
         defaultView="week"
-        step={30}
+        min={new Date(0, 0, 0, 9, 0)} // Start time
+        max={new Date(0, 0, 0, 17, 0)} // End time
+        step={30} // 30 minutes intervals
         timeslots={1}
-        min={new Date(new Date().setHours(9, 0, 0, 0))}
-        max={new Date(new Date().setHours(17, 0, 0, 0))}
       />
-      {events.length > 0 && (
+      {selectedTimeSlot && (
         <div>
-          <p>Selected Date: {moment(events[0].start).format("MMMM Do YYYY")}</p>
-          {events.map((event, index) => (
-            <p key={index}>
-              Selected Time: {moment(event.start).format("h:mm A")} -{" "}
-              {moment(event.end).format("h:mm A")}
-            </p>
-          ))}
+          <p>
+            Selected Date:{" "}
+            {moment(selectedTimeSlot.start).format("MMMM Do YYYY")}
+          </p>
+          <p>
+            Selected Time: {moment(selectedTimeSlot.start).format("h:mm A")} -{" "}
+            {moment(selectedTimeSlot.end).format("h:mm A")}
+          </p>
           <button onClick={handleConfirmAppointment}>
             Confirm Appointment
           </button>

@@ -8,5 +8,15 @@ const axiosInstance = axios.create({
     "Content-Type": "application/json",
   },
 });
-
 export default axiosInstance;
+export const addAccessTokenInterceptor = (getAccessTokenSilently) => {
+  axiosInstance.interceptors.request.use(async (config) => {
+    try {
+      const token = await getAccessTokenSilently();
+      config.headers.Authorization = `Bearer ${token}`;
+    } catch (ex) {
+      console.warn(`Error occured ${ex}`);
+    }
+    return config;
+  });
+};
